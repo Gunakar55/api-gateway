@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: user-service-auth
+              uri: lb://USER-SERVICE
+              predicates:
+                - Path=/auth/**,/health
+
+            - id: user-service
+              uri: lb://USER-SERVICE
+              predicates:
+                - Path=/user,/user/**,/profile,/profile/**,/dashboard,/dashboard/**
+
+            - id: project-service
+              uri: lb://PROJECT-SERVICE
+              predicates:
+                - Path=/projects,/projects/**
+
+            - id: task-service
+              uri: lb://TASK-SERVICE
+              predicates:
+                - Path=/tasks,/tasks/**
+            - id: notification-service
+              uri: lb://NOTIFICATION-SERVICE
+              predicates:
+                  - Path=/notifications,/notifications/**
+
+jwt:
+  secret: MzNhZTZmMzNhZTZmMzNhZTZmMzNhZTZmMzNhZTZmMzNhZTZmMzNhZTZmMzM=
+  expiration: 1800000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+
+  instance:
+    hostname: localhost
+    prefer-ip-address: false
+    instance-id: ${eureka.instance.hostname}:${spring.application.name}:${server.port}
