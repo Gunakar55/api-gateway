@@ -30,10 +30,13 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
-        System.out.println("==============================================");
-        System.out.println(path);
+        HttpMethod method = exchange.getRequest().getMethod();
 
-        if (HttpMethod.OPTIONS.equals(exchange.getRequest().getMethod())) {
+        System.out.println("==============================================");
+        System.out.println("Request Path: " + path);
+        System.out.println("Request Method: " + method);
+
+        if (HttpMethod.OPTIONS.equals(method)) {
             exchange.getResponse().setStatusCode(HttpStatus.OK);
             return exchange.getResponse().setComplete();
         }
@@ -61,6 +64,16 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         Long userId = jwtUtil.extractUserId(token);
         String role = jwtUtil.extractRole(token);
 
+        if (role != null) {
+            role = role.toUpperCase().replace("ROLE_", "");
+        }
+
+        // only block real admin endpoints
+        if (isAdminOnlyEndpoint(path, method) && !"ADMIN".equals(role)) {
+            exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
+            return exchange.getResponse().setComplete();
+        }
+
         ServerHttpRequest mutatedRequest = exchange.getRequest()
                 .mutate()
                 .header("X-User-Email", email)
@@ -71,6 +84,31 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         return chain.filter(exchange.mutate().request(mutatedRequest).build());
     }
 
+    private boolean isAdminOnlyEndpoint(String path, HttpMethod method) {
+
+        // USERS
+        if (path.startsWith("/users")) {
+            return HttpMethod.POST.equals(method)   // create user
+                    || HttpMethod.PUT.equals(method)    // update user
+                    || HttpMethod.DELETE.equals(method);// delete user
+        }
+
+        // PROJECTS
+        if (path.startsWith("/projects")) {
+            return HttpMethod.POST.equals(method)
+                    || HttpMethod.PUT.equals(method)
+                    || HttpMethod.DELETE.equals(method);
+        }
+
+        // TASKS
+        if (path.startsWith("/tasks")) {
+            return HttpMethod.POST.equals(method)
+                    || HttpMethod.PUT.equals(method)
+                    || HttpMethod.DELETE.equals(method);
+        }
+
+        return false;
+    }
     @Override
     public int getOrder() {
         return -1;
